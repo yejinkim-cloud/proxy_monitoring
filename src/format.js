@@ -23,6 +23,7 @@
 'use strict';
 
 const LOW_BALANCE_THRESHOLD_GB = 50;
+const CRITICAL_BALANCE_THRESHOLD_GB = 10;
 
 /**
  * Format a GB value to 1 decimal place, minimum 0.
@@ -102,6 +103,7 @@ function buildHeader(now) {
  * @returns {string}
  */
 function buildMessage({ currentBalanceGB, usageGB, prevDate, now = new Date() }) {
+  const isCriticalBalance = currentBalanceGB < CRITICAL_BALANCE_THRESHOLD_GB;
   const isLowBalance = currentBalanceGB < LOW_BALANCE_THRESHOLD_GB;
 
   // ── Usage line ────────────────────────────────────────────────────────────
@@ -123,7 +125,9 @@ function buildMessage({ currentBalanceGB, usageGB, prevDate, now = new Date() })
     `${formatGB(currentBalanceGB)} GB 남았습니다.`,
   ];
 
-  if (isLowBalance) {
+  if (isCriticalBalance) {
+    lines.push(':bangbang::bangbang: Proxy 용량이 매우 부족합니다. 즉시 충전해주세요. <!here>');
+  } else if (isLowBalance) {
     lines.push(':bangbang: Proxy 용량이 얼마 남지 않았습니다. 충전해주세요.');
   }
 
