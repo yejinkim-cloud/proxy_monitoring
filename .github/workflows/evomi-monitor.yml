@@ -1,0 +1,51 @@
+name: Evomi Proxy Monitor
+
+on:
+  schedule:
+    # GitHub Actions cron runs in UTC. Asia/Seoul = UTC+9.
+    # Seoul 09:00 → UTC 00:00
+    # Seoul 15:00 → UTC 06:00
+    # Seoul 21:00 → UTC 12:00
+    - cron: '0 0 * * *'
+    - cron: '0 6 * * *'
+    - cron: '0 12 * * *'
+
+  # Allow manual trigger from the GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    name: Run Evomi Monitor
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Restore the state file (previous balance snapshot) from cache.
+      # restore-keys without a suffix always picks the most recent matching cache,
+      # so we always get the snapshot from the previous run.
+      - name: Restore state cache
+        uses: actions/cache@v4
+        with:
+          path: data/state.json
+          key: evomi-state-${{ github.run_id }}
+          restore-keys: |
+            evomi-state-
+
+      - name: Run monitor
+        env:
+          EVOMI_API_KEY: ${{ secrets.EVOMI_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: npm run monitor
+      # Note: actions/cache automatically saves the updated state.json
+      # after the job completes (post-step), keyed by evomi-state-{run_id}.

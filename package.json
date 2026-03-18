@@ -1,0 +1,22 @@
+{
+  "name": "proxy-monitoring",
+  "version": "1.0.0",
+  "description": "Evomi proxy usage monitor with Slack notifications",
+  "main": "src/index.js",
+  "scripts": {
+    "monitor": "node src/index.js",
+    "server": "node src/server.js",
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@slack/bolt": "^3.19.0",
+    "@slack/webhook": "^7.0.3",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,12 @@
+# Environment variables — never commit real credentials
+.env
+
+# Node.js
+node_modules/
+
+# Runtime state (balance snapshots between runs)
+# This is persisted via GitHub Actions cache, not git.
+data/
+
+# OS
+.DS_Store
