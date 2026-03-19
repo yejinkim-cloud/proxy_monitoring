@@ -24,6 +24,9 @@
 
 const LOW_BALANCE_THRESHOLD_GB = 50;
 const CRITICAL_BALANCE_THRESHOLD_GB = 10;
+const TOTAL_CAPACITY_GB = 500;
+
+const BAR_LENGTH = 10; // number of segments in the progress bar
 
 /**
  * Format a GB value to 1 decimal place, minimum 0.
@@ -118,11 +121,19 @@ function buildMessage({ currentBalanceGB, usageGB, prevDate, now = new Date() })
     usageDetail = `${fromLabel} ~ ${toLabel}  총 ${duration} 동안 ${formatGB(usageGB)}GB를 사용했습니다.`;
   }
 
+  // Progress bar: █ for used, ░ for remaining (10 segments total)
+  const remainRatio = Math.min(1, Math.max(0, currentBalanceGB / TOTAL_CAPACITY_GB));
+  const filledCount = Math.round(remainRatio * BAR_LENGTH);
+  const bar = '█'.repeat(filledCount) + '░'.repeat(BAR_LENGTH - filledCount);
+  const pct = (remainRatio * 100).toFixed(1);
+  const progressBar = `${bar} ${pct}%\n${formatGB(currentBalanceGB)} / ${TOTAL_CAPACITY_GB} GB`;
+
   const lines = [
     buildHeader(now),
     '',
     ':battery: 현재 잔량',
     `${formatGB(currentBalanceGB)} GB 남았습니다.`,
+    progressBar,
   ];
 
   if (isCriticalBalance) {
