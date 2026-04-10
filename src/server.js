@@ -1,13 +1,10 @@
 /**
  * server.js
  *
- * Slack slash command server for on-demand monitoring.
- *
- * When /evomi-monitor is typed in Slack:
- *  1. Reads the saved state (previous balance snapshot)
- *  2. Fetches current balance from Evomi API
- *  3. Calculates usage since last scheduled run
- *  4. Responds with the same formatted message as the scheduled monitor
+ * Two responsibilities:
+ *  1. Built-in cron scheduler — fires at 09:00 / 15:00 / 21:00 Asia/Seoul
+ *     (more reliable than GitHub Actions' scheduled cron)
+ *  2. Slack slash command (/evomi-monitor) for on-demand queries
  *
  * Usage:
  *   node src/server.js    (or: npm start / npm run server)
@@ -17,7 +14,9 @@
 
 require('dotenv').config();
 
+const cron = require('node-cron');
 const { App, ExpressReceiver } = require('@slack/bolt');
+const { run: runMonitor } = require('./index');
 const { fetchBalance } = require('./evomi');
 const { readState, writeState } = require('./state');
 const { buildMessage } = require('./format');
@@ -30,6 +29,22 @@ const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
   receiver,
 });
+
+// ── Cron scheduler (Asia/Seoul) ──────────────────────────────────────────────
+// Runs at 09:00, 15:00, 21:00 KST every day.
+// node-cron handles the timezone natively — no UTC conversion needed.
+const CRON_SCHEDULE = '0 9,15,21 * * *';
+
+cron.schedule(CRON_SCHEDULE, async () => {
+  console.log('[cron] Scheduled monitor triggered');
+  try {
+    await runMonitor();
+  } catch (err) {
+    console.error('[cron] Monitor run failed:', err.message);
+  }
+}, { timezone: 'Asia/Seoul' });
+
+console.log(`[cron] Scheduled at ${CRON_SCHEDULE} Asia/Seoul (09:00 / 15:00 / 21:00 KST)`);
 
 // ── /evomi-monitor slash command ─────────────────────────────────────────────
 

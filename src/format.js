@@ -22,9 +22,9 @@
 
 'use strict';
 
-const LOW_BALANCE_THRESHOLD_GB = 50;
-const CRITICAL_BALANCE_THRESHOLD_GB = 10;
 const TOTAL_CAPACITY_GB = 500;
+// @here + personal mention fires when remaining balance drops below 10% of total
+const ALERT_THRESHOLD_GB = TOTAL_CAPACITY_GB * 0.10; // 50 GB
 
 const BAR_LENGTH = 10; // number of segments in the progress bar
 
@@ -84,15 +84,34 @@ function formatDuration(totalMinutes) {
   return `${m}분`;
 }
 
+// Scheduled hours in KST. Used to snap the message header to the intended time
+// even when GitHub Actions triggers 30 min early or runs with a delay.
+const SCHEDULED_HOURS_KST = [7, 11, 15, 21];
+
+/**
+ * Snap a Seoul hour to the nearest scheduled hour (7 / 11 / 15 / 21).
+ * e.g. actual run at 06:35 → snapped to 7, actual run at 21:20 → snapped to 21
+ * @param {number} actualHour
+ * @returns {number}
+ */
+function snapToScheduledHour(actualHour) {
+  return SCHEDULED_HOURS_KST.reduce((prev, curr) =>
+    Math.abs(curr - actualHour) < Math.abs(prev - actualHour) ? curr : prev
+  );
+}
+
 /**
  * Build the Korean date/time header in bold Slack markdown.
+ * Hour is snapped to the nearest scheduled time so the header always reads
+ * "7시 / 11시 / 15시 / 21시" regardless of minor cron drift.
  * e.g. "*[3월 18일 15시 Proxy 모니터링 알림]*"
  * @param {Date} now
  * @returns {string}
  */
 function buildHeader(now) {
   const { month, day, hour } = toSeoulParts(now);
-  return `*[${month}월 ${day}일 ${hour}시 Proxy 모니터링 알림]*`;
+  const snappedHour = snapToScheduledHour(hour);
+  return `*[${month}월 ${day}일 ${snappedHour}시 Proxy 모니터링 알림]*`;
 }
 
 /**
@@ -106,8 +125,7 @@ function buildHeader(now) {
  * @returns {string}
  */
 function buildMessage({ currentBalanceGB, usageGB, prevDate, now = new Date() }) {
-  const isCriticalBalance = currentBalanceGB < CRITICAL_BALANCE_THRESHOLD_GB;
-  const isLowBalance = currentBalanceGB < LOW_BALANCE_THRESHOLD_GB;
+  const isAlert = currentBalanceGB < ALERT_THRESHOLD_GB;
 
   // ── Usage line ────────────────────────────────────────────────────────────
   let usageDetail;
@@ -136,10 +154,12 @@ function buildMessage({ currentBalanceGB, usageGB, prevDate, now = new Date() })
     progressBar,
   ];
 
-  if (isCriticalBalance) {
-    lines.push(':bangbang::bangbang: Proxy 용량이 매우 부족합니다. 즉시 충전해주세요. <!here>');
-  } else if (isLowBalance) {
-    lines.push(':bangbang: Proxy 용량이 얼마 남지 않았습니다. 충전해주세요.');
+  // Alert when remaining balance is below 10% of total capacity (50 GB)
+  // Mentions @here and the designated owner
+  if (isAlert) {
+    const mentionUserId = process.env.SLACK_MENTION_USER_ID;
+    const mentions = mentionUserId ? `<!here> <@${mentionUserId}>` : '<!here>';
+    lines.push(`:bangbang::bangbang: Proxy 용량이 부족합니다. 즉시 충전해주세요. ${mentions}`);
   }
 
   lines.push('');
@@ -149,4 +169,4 @@ function buildMessage({ currentBalanceGB, usageGB, prevDate, now = new Date() })
   return lines.join('\n');
 }
 
-module.exports = { buildMessage, LOW_BALANCE_THRESHOLD_GB };
+module.exports = { buildMessage, ALERT_THRESHOLD_GB };

@@ -71,4 +71,10 @@ async function run() {
   console.log('[index] State saved. Done.');
 }
 
-run();
+// Allow importing run() from server.js for the in-process cron scheduler.
+// When executed directly (npm run monitor), just run once and exit.
+if (require.main === module) {
+  run();
+}
+
+module.exports = { run };

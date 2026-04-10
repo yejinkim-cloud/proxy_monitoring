@@ -3,12 +3,18 @@ name: Evomi Proxy Monitor
 on:
   schedule:
     # GitHub Actions cron runs in UTC. Asia/Seoul = UTC+9.
-    # Seoul 09:00 → UTC 00:00
-    # Seoul 15:00 → UTC 06:00
-    # Seoul 21:00 → UTC 12:00
-    - cron: '0 0 * * *'
-    - cron: '0 6 * * *'
-    - cron: '0 12 * * *'
+    # Triggered 30 min early to absorb GitHub's up-to-1h scheduling delay.
+    # The Slack message header is snapped to the nearest scheduled hour (7/11/15/21).
+    #
+    # Target KST → Trigger UTC (−30 min)
+    #   07:00 KST → 21:30 UTC (prev day)
+    #   11:00 KST → 01:30 UTC
+    #   15:00 KST → 05:30 UTC
+    #   21:00 KST → 11:30 UTC
+    - cron: '30 21 * * *'
+    - cron: '30 1 * * *'
+    - cron: '30 5 * * *'
+    - cron: '30 11 * * *'
 
   # Allow manual trigger from the GitHub Actions UI
   workflow_dispatch:
@@ -46,6 +52,7 @@ jobs:
         env:
           EVOMI_API_KEY: ${{ secrets.EVOMI_API_KEY }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_MENTION_USER_ID: ${{ secrets.SLACK_MENTION_USER_ID }}
         run: npm run monitor
       # Note: actions/cache automatically saves the updated state.json
       # after the job completes (post-step), keyed by evomi-state-{run_id}.
